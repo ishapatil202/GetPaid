@@ -1,0 +1,11 @@
+TRANSLATION SERVICES AGREEMENT
+
+Client: Atelier Solène SARL (billing contact: comptabilite@ateliersolene.example)
+Translator: Mateo Rossi
+Date: 3 November 2026
+
+The Translator will translate the Client's product catalogue from French into English and Italian.
+
+Fee: €3,500 in total, paid in two equal halves.
+- First half: €1,750, due 30 November 2026.
+- Second half: €1,750, due 31 January 2027.

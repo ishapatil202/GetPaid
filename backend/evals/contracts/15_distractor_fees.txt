@@ -1,0 +1,13 @@
+WEB DEVELOPMENT AGREEMENT
+
+This agreement is made between Riverbend Clinic ("Client", finance@riverbendclinic.example) and Omar Haddad Dev ("Developer") on November 2, 2026.
+
+Scope: build a patient information website with an appointment request form.
+
+Fees: The total project fee is $6,000, paid in two phases.
+- Phase 1 (design and front end): $3,000, due December 5, 2026.
+- Phase 2 (forms, testing, and launch): $3,000, due January 30, 2027.
+
+Cancellation: If the Client cancels the project, the Client will pay a cancellation fee of $500.
+Hosting: Hosting costs of about $20 per month are paid by the Client directly to the hosting provider.
+Late payments: Overdue amounts incur a late fee of 2% per month.

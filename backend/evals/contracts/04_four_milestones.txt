@@ -1,0 +1,14 @@
+MOBILE APP UI DESIGN CONTRACT
+
+Parties: Lumen Health Inc. ("Client"; accounts payable: ap@lumenhealth.example) and Priya Nair Studio ("Designer").
+Effective date: Oct. 30, 2026
+
+Project fee: $12,000 USD in total.
+
+Milestones
+1. Discovery and wireframes - $2,000 - due Dec. 1, 2026
+2. High-fidelity designs - $4,000 - due Jan 15 2027
+3. Interactive prototype - $3,000 - due Feb. 5, 2027
+4. Developer handoff - $3,000 - due Mar 1, 2027
+
+Invoices are payable on the milestone due dates above.

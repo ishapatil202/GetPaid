@@ -10,7 +10,7 @@ load_dotenv(ROOT / ".env")
 # AI
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-PROMPT_VERSION = "v1"
+PROMPT_VERSION = "v2"  # v1 -> v2: real nulls, clean quotes, evidence must contain the value
 
 # PayPal
 PAYPAL_CLIENT_ID = os.getenv("PAYPAL_CLIENT_ID", "")

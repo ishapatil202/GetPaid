@@ -1,0 +1,5 @@
+CONSULTING AGREEMENT
+
+Bluebird Analytics Inc. ("Client", accounts@bluebird.example) engages Dana Whitfield ("Consultant") to review its data pipeline and recommend improvements.
+
+Compensation. The Client shall pay the Consultant a total fee of four thousand dollars ($4,000). The first payment of two thousand five hundred dollars ($2,500) is due on December 10, 2026. The final payment of one thousand five hundred dollars ($1,500) is due on January 20, 2027.
