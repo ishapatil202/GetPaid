@@ -152,6 +152,20 @@ export type Reminder = {
   sent_at: string | null;
 };
 
+export type AskResult = {
+  status: "all" | "unpaid" | "waiting" | "overdue" | "paid";
+  client_contains: string | null;
+  payment_contains: string | null;
+  amount_min: number | null;
+  amount_max: number | null;
+  days_late_min: number | null;
+  sort_by: "amount" | "due_date" | "days_late" | "sent_at" | null;
+  sort_direction: "asc" | "desc" | null;
+  explanation: string;
+  model: string;
+  latency_ms: number;
+};
+
 // ---------- requests ----------
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
@@ -203,6 +217,7 @@ export const api = {
   invoices: () => request<Invoice[]>("GET", "/invoices"),
   refresh: () => request<RefreshResult>("POST", "/invoices/refresh"),
   dashboard: () => request<Dashboard>("GET", "/dashboard"),
+  askInvoices: (question: string) => request<AskResult>("POST", "/invoices/ask", { question }),
   runAgent: () => request<{ run: AgentRun; reminders: Reminder[] }>("POST", "/agent/run"),
   latestRun: () => request<AgentRun | null>("GET", "/agent/runs/latest"),
   reminders: () => request<Reminder[]>("GET", "/reminders"),

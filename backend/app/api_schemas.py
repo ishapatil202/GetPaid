@@ -152,3 +152,21 @@ class ReminderUpdate(BaseModel):
 class AgentRunResult(BaseModel):
     run: AgentRunOut
     reminders: List[ReminderOut]
+
+
+class AskIn(BaseModel):
+    question: str = Field(min_length=2, max_length=300)
+
+
+class AskOut(BaseModel):
+    status: str
+    client_contains: Optional[str]
+    payment_contains: Optional[str]
+    amount_min: Optional[float]
+    amount_max: Optional[float]
+    days_late_min: Optional[int]
+    sort_by: Optional[str]
+    sort_direction: Optional[str]
+    explanation: str
+    model: str
+    latency_ms: int

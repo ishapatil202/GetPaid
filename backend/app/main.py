@@ -17,7 +17,8 @@ from sqlalchemy.orm import Session
 
 from . import config
 from .agent import run_reminder_agent
-from .api_schemas import (AgentRunOut, AgentRunResult, ContractIn, ContractOut, ContractSummary, ContractUpdate,
+from .ask import ask_to_filters
+from .api_schemas import (AgentRunOut, AgentRunResult, AskIn, AskOut, ContractIn, ContractOut, ContractSummary, ContractUpdate,
                           Dashboard, InvoiceOut, LoginOut, MilestoneOut, MilestoneUpdate, ReminderOut, ReminderUpdate)
 from .auth import create_token, get_current_user, get_or_create_demo_user
 from .checks import BLOCKING_CODES, payment_checks
@@ -331,6 +332,17 @@ def refresh_invoices(user: User = Depends(get_current_user), db: Session = Depen
     except PayPalError as error:
         raise HTTPException(status_code=502, detail=error.message)
     return {"changed": changed, "invoices": [invoice_out(inv) for inv in _user_invoices(db, user)]}
+
+
+@app.post("/invoices/ask", response_model=AskOut, tags=["invoices"])
+def ask_invoices(body: AskIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Plain-English question -> filter settings for the invoice table. Changes no data."""
+    clients = sorted({inv.milestone.contract.client_name for inv in _user_invoices(db, user)
+                      if inv.milestone and inv.milestone.contract.client_name})
+    try:
+        return AskOut(**ask_to_filters(body.question, clients))
+    except (openai.OpenAIError, RuntimeError) as error:
+        raise HTTPException(status_code=502, detail=f"AI service error: {error}")
 
 
 @app.get("/dashboard", response_model=Dashboard, tags=["invoices"])
