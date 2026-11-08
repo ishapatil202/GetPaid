@@ -4,12 +4,15 @@ import { go } from "../router";
 import { LATE_CLIENT_CONTRACT, SAMPLE_CONTRACT } from "../sampleContract";
 
 const STEPS = ["Reading the contract", "Finding each payment", "Checking that the numbers add up"];
+const ACCEPTED = ".pdf,.txt,.md,application/pdf,text/plain";
 
 export default function NewContract() {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
 
   useEffect(() => {
     if (!loading) return;
@@ -18,11 +21,11 @@ export default function NewContract() {
     return () => window.clearInterval(timer);
   }, [loading]);
 
-  async function readContract() {
+  async function run(action: () => Promise<{ id: number }>) {
     setLoading(true);
     setError(null);
     try {
-      const contract = await api.createContract(text);
+      const contract = await action();
       go(`/contracts/${contract.id}`);
     } catch (e) {
       setError((e as Error).message);
@@ -30,9 +33,13 @@ export default function NewContract() {
     }
   }
 
-  async function loadFile(file: File | undefined) {
-    if (!file) return;
-    setText(await file.text());
+  const readContract = () => run(() => api.createContract(text));
+
+  // A PDF (or text file) starts reading right away.
+  function handleFile(file: File | undefined) {
+    if (!file || loading) return;
+    setFileName(file.name);
+    run(() => api.uploadContract(file));
   }
 
   const tooShort = text.trim().length < 50;
@@ -41,7 +48,20 @@ export default function NewContract() {
     <div className="stack narrow">
       <a className="back-link" href="#/">All contracts</a>
       <h1>Add a contract</h1>
-      <p className="muted">Paste the full text of a freelance contract or statement of work.</p>
+      <p className="muted">Upload the contract as a PDF, or paste its text.</p>
+
+      <label
+        className={`dropzone${dragging ? " is-dragging" : ""}${loading ? " is-busy" : ""}`}
+        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => { e.preventDefault(); setDragging(false); handleFile(e.dataTransfer.files?.[0]); }}
+      >
+        <input type="file" accept={ACCEPTED} disabled={loading} onChange={(e) => handleFile(e.target.files?.[0])} />
+        <strong>{fileName && loading ? `Reading ${fileName}…` : "Upload a PDF contract"}</strong>
+        <span className="muted">Drop it here or click to choose a file</span>
+      </label>
+
+      <p className="or-line"><span>or paste the text</span></p>
 
       <div className="paper paper-input">
         <label htmlFor="contract-text" className="visually-hidden">Contract text</label>
@@ -62,10 +82,6 @@ export default function NewContract() {
         <button className="button" onClick={() => setText(LATE_CLIENT_CONTRACT)} disabled={loading}>
           Sample: late client
         </button>
-        <label className="button file-button">
-          Open a .txt file
-          <input type="file" accept=".txt,.md,text/plain" onChange={(e) => loadFile(e.target.files?.[0])} disabled={loading} />
-        </label>
         <span className="spacer" />
         <button className="button button-primary" onClick={readContract} disabled={tooShort || loading}>
           {loading ? "Reading…" : "Read contract"}

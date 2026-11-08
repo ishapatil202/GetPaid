@@ -160,10 +160,11 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     response = await fetch(API_URL + path, {
       method,
       headers: {
-        "Content-Type": "application/json",
+        // FormData (file uploads) sets its own content type.
+        ...(body instanceof FormData ? {} : { "Content-Type": "application/json" }),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : body instanceof FormData ? body : JSON.stringify(body),
     });
   } catch {
     throw new Error("Can't reach the GetPaid server. Make sure the backend is running.");
@@ -189,6 +190,11 @@ export const api = {
   contracts: () => request<ContractSummary[]>("GET", "/contracts"),
   contract: (id: number) => request<Contract>("GET", `/contracts/${id}`),
   createContract: (text: string) => request<Contract>("POST", "/contracts", { text }),
+  uploadContract: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request<Contract>("POST", "/contracts/upload", form);
+  },
   updateContract: (id: number, body: Partial<Pick<Contract, "client_name" | "client_email" | "contract_total">>) =>
     request<Contract>("PATCH", `/contracts/${id}`, body),
   updateMilestone: (id: number, body: { title?: string; amount?: number; due_date?: string }) =>

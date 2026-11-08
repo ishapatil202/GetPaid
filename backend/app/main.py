@@ -9,9 +9,10 @@ from contextlib import asynccontextmanager
 from datetime import date, datetime, timezone
 
 import openai
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
+from starlette.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 
 from . import config
@@ -24,6 +25,7 @@ from .database import Base, engine, get_db
 from .extraction import extract_contract
 from .models import AgentRun, Contract, ExtractionLog, Invoice, Milestone, Reminder, User
 from .paypal_client import PayPalError, get_paypal, invoice_summary
+from .pdf_text import PdfTextError, pdf_to_text
 from .schemas import Highlight, Issue
 
 FINAL_STATUSES = {"PAID", "MARKED_AS_PAID", "CANCELLED", "REFUNDED", "MARKED_AS_REFUNDED"}
@@ -144,20 +146,19 @@ def me(user: User = Depends(get_current_user)):
 
 # ---------- contracts ----------
 
-@app.post("/contracts", response_model=ContractOut, tags=["contracts"])
-def create_contract(body: ContractIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """Upload contract text -> AI extracts payment details -> our checks verify them."""
+def create_contract_from_text(text: str, title: str | None, user: User, db: Session) -> ContractOut:
+    """Shared by paste and PDF upload: AI extracts payment details, our checks verify them."""
     try:
-        result = extract_contract(body.text)
+        result = extract_contract(text)
     except openai.OpenAIError as error:
         raise HTTPException(status_code=502, detail=f"AI service error: {error}")
 
     data = result.extraction
     spans = {h.field: h for h in result.highlights}
-    title = body.title or " – ".join(x for x in (data.client_name.value, "Contract") if x)
+    title = title or " – ".join(x for x in (data.client_name.value, "Contract") if x)
 
     contract = Contract(
-        user_id=user.id, title=title[:255], raw_text=body.text,
+        user_id=user.id, title=title[:255], raw_text=text,
         client_name=data.client_name.value, client_email=data.client_email.value,
         freelancer_name=data.freelancer_name.value, currency=(data.currency or "USD")[:3].upper(),
         contract_total=data.contract_total.value, payment_terms=data.payment_terms.value,
@@ -177,6 +178,31 @@ def create_contract(body: ContractIn, user: User = Depends(get_current_user), db
                          output_tokens=result.output_tokens, issue_count=len(result.issues)))
     db.commit()
     return contract_out(contract)
+
+
+
+@app.post("/contracts", response_model=ContractOut, tags=["contracts"])
+def create_contract(body: ContractIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Pasted contract text -> AI extraction -> checks."""
+    return create_contract_from_text(body.text, body.title, user, db)
+
+
+@app.post("/contracts/upload", response_model=ContractOut, tags=["contracts"])
+async def upload_contract(file: UploadFile = File(...), user: User = Depends(get_current_user),
+                          db: Session = Depends(get_db)):
+    """Upload a PDF (or .txt) contract. The text is pulled out, then it works like pasted text."""
+    data = await file.read()
+    name = (file.filename or "").lower()
+    try:
+        if name.endswith(".pdf") or data[:5] == b"%PDF-":
+            text = pdf_to_text(data)
+        else:
+            text = data.decode("utf-8", errors="replace").strip()
+            if len(text) < 50:
+                raise PdfTextError("This file is too short to be a contract.")
+    except PdfTextError as error:
+        raise HTTPException(status_code=422, detail=str(error))
+    return await run_in_threadpool(create_contract_from_text, text[:50_000], None, user, db)
 
 
 @app.get("/contracts", response_model=list[ContractSummary], tags=["contracts"])
