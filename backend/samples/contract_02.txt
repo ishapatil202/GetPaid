@@ -1,0 +1,23 @@
+WEBSITE DESIGN AND DEVELOPMENT AGREEMENT
+
+This Agreement is made on September 15, 2026 between Northwind Yoga Studio ("Client"), billing contact accounts@northwindyoga.example, and Maria Lopez Design ("Designer").
+
+1. Scope of Work
+The Designer will design and build a new website for the Client, including a homepage, class schedule, and online booking page.
+
+2. Fees
+The total fee for this project is $2,400 USD, payable in two installments.
+
+3. Payment Schedule
+(a) Homepage and booking page designs: $900, due on October 20, 2026.
+(b) Full website build and launch: $1,500, due on November 1, 2026.
+
+4. Payment Terms
+Each payment is due on the date listed above. Payments more than 14 days late will incur a late fee of 1.5% of the overdue amount per month.
+
+5. Ownership
+The Client receives full ownership of the website files after all payments are received.
+
+Signed,
+Northwind Yoga Studio
+Maria Lopez Design

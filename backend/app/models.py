@@ -2,7 +2,7 @@
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from sqlalchemy import JSON, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
@@ -91,3 +91,37 @@ class ExtractionLog(Base):
     output_tokens: Mapped[Optional[int]] = mapped_column(Integer)
     issue_count: Mapped[int] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class AgentRun(Base):
+    """One run of the reminder agent, with every step it took (for transparency)."""
+    __tablename__ = "agent_runs"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    steps: Mapped[list] = mapped_column(JSON, default=list)
+    summary: Mapped[str] = mapped_column(Text, default="")
+    invoices_checked: Mapped[int] = mapped_column(Integer, default=0)
+    late_found: Mapped[int] = mapped_column(Integer, default=0)
+    drafts_created: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class Reminder(Base):
+    """A reminder the agent drafted. Nothing is sent until the user approves it."""
+    __tablename__ = "reminders"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    invoice_id: Mapped[int] = mapped_column(ForeignKey("invoices.id"), index=True)
+    agent_run_id: Mapped[Optional[int]] = mapped_column(ForeignKey("agent_runs.id"))
+    tone: Mapped[str] = mapped_column(String(10))  # friendly | firm
+    days_overdue: Mapped[int] = mapped_column(Integer)
+    subject: Mapped[str] = mapped_column(Text)
+    body: Mapped[str] = mapped_column(Text)
+    contract_quote: Mapped[Optional[str]] = mapped_column(Text)
+    quote_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    status: Mapped[str] = mapped_column(String(10), default="draft")  # draft | sent | skipped
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+    invoice: Mapped[Invoice] = relationship()

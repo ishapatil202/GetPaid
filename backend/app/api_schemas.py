@@ -103,3 +103,52 @@ class Dashboard(BaseModel):
     invoice_count: int
     paid_count: int
     overdue_count: int
+
+
+class AgentStep(BaseModel):
+    tool: str
+    summary: str
+    ok: bool
+
+
+class AgentRunOut(BaseModel):
+    id: int
+    started_at: datetime
+    finished_at: Optional[datetime]
+    steps: List[AgentStep]
+    summary: str
+    invoices_checked: int
+    late_found: int
+    drafts_created: int
+
+
+class ReminderOut(BaseModel):
+    id: int
+    invoice_id: int
+    paypal_invoice_id: str
+    pay_link: Optional[str]
+    milestone_title: str
+    client_name: Optional[str]
+    contract_id: int
+    amount: float
+    currency: str
+    due_date: Optional[str]
+    days_overdue: int
+    tone: str
+    subject: str
+    body: str
+    contract_quote: Optional[str]
+    quote_verified: bool
+    status: str
+    created_at: datetime
+    sent_at: Optional[datetime]
+
+
+class ReminderUpdate(BaseModel):
+    subject: Optional[str] = Field(default=None, min_length=1, max_length=300)
+    body: Optional[str] = Field(default=None, min_length=1, max_length=4000)
+
+
+class AgentRunResult(BaseModel):
+    run: AgentRunOut
+    reminders: List[ReminderOut]

@@ -119,6 +119,39 @@ export type RefreshResult = {
   invoices: Invoice[];
 };
 
+export type AgentStep = { tool: string; summary: string; ok: boolean };
+export type AgentRun = {
+  id: number;
+  started_at: string;
+  finished_at: string | null;
+  steps: AgentStep[];
+  summary: string;
+  invoices_checked: number;
+  late_found: number;
+  drafts_created: number;
+};
+export type Reminder = {
+  id: number;
+  invoice_id: number;
+  paypal_invoice_id: string;
+  pay_link: string | null;
+  milestone_title: string;
+  client_name: string | null;
+  contract_id: number;
+  amount: number;
+  currency: string;
+  due_date: string | null;
+  days_overdue: number;
+  tone: "friendly" | "firm";
+  subject: string;
+  body: string;
+  contract_quote: string | null;
+  quote_verified: boolean;
+  status: "draft" | "sent" | "skipped";
+  created_at: string;
+  sent_at: string | null;
+};
+
 // ---------- requests ----------
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
@@ -164,4 +197,11 @@ export const api = {
   invoices: () => request<Invoice[]>("GET", "/invoices"),
   refresh: () => request<RefreshResult>("POST", "/invoices/refresh"),
   dashboard: () => request<Dashboard>("GET", "/dashboard"),
+  runAgent: () => request<{ run: AgentRun; reminders: Reminder[] }>("POST", "/agent/run"),
+  latestRun: () => request<AgentRun | null>("GET", "/agent/runs/latest"),
+  reminders: () => request<Reminder[]>("GET", "/reminders"),
+  editReminder: (id: number, body: { subject?: string; body?: string }) =>
+    request<Reminder>("PATCH", `/reminders/${id}`, body),
+  approveReminder: (id: number) => request<Reminder>("POST", `/reminders/${id}/approve`),
+  skipReminder: (id: number) => request<Reminder>("POST", `/reminders/${id}/skip`),
 };

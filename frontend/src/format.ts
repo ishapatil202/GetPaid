@@ -5,7 +5,11 @@ export function money(value: number | null | undefined, currency = "USD") {
 
 export function niceDate(iso: string | null | undefined) {
   if (!iso) return "—";
-  const date = iso.length === 10 ? new Date(iso + "T00:00:00") : new Date(iso);
+  // Dates like "2026-12-04" are calendar days. Timestamps from the server are UTC,
+  // and SQLite drops the "Z", so add it back before converting to local time.
+  let date: Date;
+  if (iso.length === 10) date = new Date(iso + "T00:00:00");
+  else date = new Date(/[zZ]|[+-]\d{2}:?\d{2}$/.test(iso) ? iso : iso.replace(" ", "T") + "Z");
   if (Number.isNaN(date.getTime())) return iso;
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }

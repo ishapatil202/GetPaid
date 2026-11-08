@@ -6,6 +6,7 @@ import Contracts from "./pages/Contracts";
 import NewContract from "./pages/NewContract";
 import Review from "./pages/Review";
 import Invoices from "./pages/Invoices";
+import Reminders from "./pages/Reminders";
 
 export default function App() {
   const route = useRoute();
@@ -49,9 +50,10 @@ export default function App() {
   if (route === "/new") page = <NewContract />;
   else if (contractMatch) page = <Review contractId={Number(contractMatch[1])} />;
   else if (route === "/invoices") page = <Invoices />;
+  else if (route === "/reminders") page = <Reminders />;
   else page = <Contracts />;
 
-  const section = route.startsWith("/invoices") ? "invoices" : "contracts";
+  const section = route.startsWith("/invoices") ? "invoices" : route.startsWith("/reminders") ? "reminders" : "contracts";
 
   return (
     <div className="shell">
@@ -63,6 +65,7 @@ export default function App() {
         <nav className="topnav" aria-label="Main">
           <a href="#/" aria-current={section === "contracts" ? "page" : undefined}>Contracts</a>
           <a href="#/invoices" aria-current={section === "invoices" ? "page" : undefined}>Invoices</a>
+          <a href="#/reminders" aria-current={section === "reminders" ? "page" : undefined}>Reminders</a>
         </nav>
         <div className="topbar-user">
           <span>{session.name}</span>

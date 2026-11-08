@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import { go } from "../router";
-import { SAMPLE_CONTRACT } from "../sampleContract";
+import { LATE_CLIENT_CONTRACT, SAMPLE_CONTRACT } from "../sampleContract";
 
 const STEPS = ["Reading the contract", "Finding each payment", "Checking that the numbers add up"];
 
@@ -57,7 +57,10 @@ export default function NewContract() {
 
       <div className="row-actions">
         <button className="button" onClick={() => setText(SAMPLE_CONTRACT)} disabled={loading}>
-          Use the sample contract
+          Sample: new project
+        </button>
+        <button className="button" onClick={() => setText(LATE_CLIENT_CONTRACT)} disabled={loading}>
+          Sample: late client
         </button>
         <label className="button file-button">
           Open a .txt file

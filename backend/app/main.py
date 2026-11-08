@@ -15,13 +15,14 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from . import config
-from .api_schemas import (ContractIn, ContractOut, ContractSummary, ContractUpdate, Dashboard, InvoiceOut,
-                          LoginOut, MilestoneOut, MilestoneUpdate)
+from .agent import run_reminder_agent
+from .api_schemas import (AgentRunOut, AgentRunResult, ContractIn, ContractOut, ContractSummary, ContractUpdate,
+                          Dashboard, InvoiceOut, LoginOut, MilestoneOut, MilestoneUpdate, ReminderOut, ReminderUpdate)
 from .auth import create_token, get_current_user, get_or_create_demo_user
 from .checks import BLOCKING_CODES, payment_checks
 from .database import Base, engine, get_db
 from .extraction import extract_contract
-from .models import Contract, ExtractionLog, Invoice, Milestone, User
+from .models import AgentRun, Contract, ExtractionLog, Invoice, Milestone, Reminder, User
 from .paypal_client import PayPalError, get_paypal, invoice_summary
 from .schemas import Highlight, Issue
 
@@ -321,3 +322,92 @@ def dashboard(user: User = Depends(get_current_user), db: Session = Depends(get_
         overdue=round(sum(i.amount for i in overdue), 2),
         invoice_count=len(invoices), paid_count=len(paid), overdue_count=len(overdue),
     )
+
+
+# ---------- reminder agent ----------
+
+def reminder_out(r: Reminder) -> ReminderOut:
+    inv = r.invoice
+    m = inv.milestone
+    return ReminderOut(
+        id=r.id, invoice_id=inv.id, paypal_invoice_id=inv.paypal_invoice_id, pay_link=inv.pay_link,
+        milestone_title=m.title, client_name=m.contract.client_name, contract_id=m.contract_id,
+        amount=inv.amount, currency=inv.currency, due_date=inv.due_date, days_overdue=r.days_overdue,
+        tone=r.tone, subject=r.subject, body=r.body, contract_quote=r.contract_quote,
+        quote_verified=r.quote_verified, status=r.status, created_at=r.created_at, sent_at=r.sent_at,
+    )
+
+
+def run_out(run: AgentRun) -> AgentRunOut:
+    return AgentRunOut(
+        id=run.id, started_at=run.started_at, finished_at=run.finished_at, steps=run.steps or [],
+        summary=run.summary, invoices_checked=run.invoices_checked, late_found=run.late_found,
+        drafts_created=run.drafts_created,
+    )
+
+
+def own_reminder(db: Session, user: User, reminder_id: int) -> Reminder:
+    reminder = db.get(Reminder, reminder_id)
+    if reminder is None or reminder.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Reminder not found.")
+    return reminder
+
+
+@app.post("/agent/run", response_model=AgentRunResult, tags=["agent"])
+def run_agent(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Check every open invoice with PayPal and draft reminders for late ones. Sends nothing."""
+    try:
+        run, drafts = run_reminder_agent(db, user, get_paypal())
+    except PayPalError as error:
+        raise HTTPException(status_code=502, detail=error.message)
+    return AgentRunResult(run=run_out(run), reminders=[reminder_out(r) for r in drafts])
+
+
+@app.get("/agent/runs/latest", response_model=AgentRunOut | None, tags=["agent"])
+def latest_run(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    run = db.query(AgentRun).filter(AgentRun.user_id == user.id).order_by(AgentRun.id.desc()).first()
+    return run_out(run) if run else None
+
+
+@app.get("/reminders", response_model=list[ReminderOut], tags=["agent"])
+def list_reminders(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    reminders = db.query(Reminder).filter(Reminder.user_id == user.id).order_by(Reminder.id.desc()).all()
+    return [reminder_out(r) for r in reminders]
+
+
+@app.patch("/reminders/{reminder_id}", response_model=ReminderOut, tags=["agent"])
+def edit_reminder(reminder_id: int, body: ReminderUpdate, user: User = Depends(get_current_user),
+                  db: Session = Depends(get_db)):
+    reminder = own_reminder(db, user, reminder_id)
+    if reminder.status != "draft":
+        raise HTTPException(status_code=409, detail="Only drafts can be edited.")
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(reminder, field, value)
+    db.commit()
+    return reminder_out(reminder)
+
+
+@app.post("/reminders/{reminder_id}/approve", response_model=ReminderOut, tags=["agent"])
+def approve_reminder(reminder_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """The human approves: PayPal sends the reminder to the client."""
+    reminder = own_reminder(db, user, reminder_id)
+    if reminder.status != "draft":
+        raise HTTPException(status_code=409, detail=f"This reminder is already {reminder.status}.")
+    try:
+        get_paypal().remind(reminder.invoice.paypal_invoice_id, reminder.subject, reminder.body)
+    except PayPalError as error:
+        raise HTTPException(status_code=502, detail=error.message)
+    reminder.status = "sent"
+    reminder.sent_at = datetime.now(timezone.utc)
+    db.commit()
+    return reminder_out(reminder)
+
+
+@app.post("/reminders/{reminder_id}/skip", response_model=ReminderOut, tags=["agent"])
+def skip_reminder(reminder_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    reminder = own_reminder(db, user, reminder_id)
+    if reminder.status != "draft":
+        raise HTTPException(status_code=409, detail=f"This reminder is already {reminder.status}.")
+    reminder.status = "skipped"
+    db.commit()
+    return reminder_out(reminder)
