@@ -108,7 +108,9 @@ export default function Review({ contractId }: { contractId: number }) {
         <a className="back-link" href="#/">All contracts</a>
         <h1>{contract.client_name || contract.title}</h1>
         <p className="muted">
-          {contract.freelancer_name ? `${contract.freelancer_name} for ${contract.client_name ?? "the client"}. ` : ""}
+          {contract.freelancer_name
+            ? `${contract.freelancer_name} for ${(contract.client_name ?? "the client").replace(/\.$/, "")}. `
+            : ""}
           Click a payment to see where it comes from in the contract.
         </p>
       </div>
