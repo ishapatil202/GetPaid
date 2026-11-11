@@ -5,6 +5,7 @@ Run from the project folder:
     uvicorn app.main:app --reload --app-dir backend
 Then open http://localhost:8000/docs
 """
+import logging
 from contextlib import asynccontextmanager
 from datetime import date, datetime, timezone
 
@@ -28,6 +29,9 @@ from .models import AgentRun, Contract, ExtractionLog, Invoice, Milestone, Remin
 from .paypal_client import PayPalError, get_paypal, invoice_summary
 from .pdf_text import PdfTextError, pdf_to_text
 from .schemas import Highlight, Issue
+
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(name)s: %(message)s")
+logging.getLogger("getpaid").setLevel(logging.INFO)
 
 FINAL_STATUSES = {"PAID", "MARKED_AS_PAID", "CANCELLED", "REFUNDED", "MARKED_AS_REFUNDED"}
 

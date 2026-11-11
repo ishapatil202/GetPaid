@@ -50,6 +50,7 @@ def ask_to_filters(question: str, clients: list[str]) -> dict:
         question,
         "invoice_filters",
         ASK_SCHEMA,
+        max_tokens=300,
     )
     # Our own sanity checks on the AI's answer.
     if data.get("status") not in STATUSES:

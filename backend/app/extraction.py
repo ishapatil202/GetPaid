@@ -86,7 +86,7 @@ Rules:
 # ---------- 2. Calling the AI ----------
 
 def _call_model(contract_text: str):
-    client = OpenAI(api_key=config.OPENAI_API_KEY)
+    client = OpenAI(api_key=config.OPENAI_API_KEY, timeout=45.0, max_retries=1)
     request = dict(
         model=config.OPENAI_MODEL,
         messages=[
@@ -98,12 +98,17 @@ def _call_model(contract_text: str):
             "json_schema": {"name": "contract_extraction", "strict": True, "schema": EXTRACTION_SCHEMA},
         },
         temperature=0,
+        max_tokens=3000,  # stops a stuck answer quickly instead of running for minutes
     )
     try:
         return client.chat.completions.create(**request)
     except BadRequestError as error:
-        if "temperature" in str(error):  # some newer models don't accept temperature
+        text = str(error)
+        if "temperature" in text:  # some newer models don't accept temperature
             request.pop("temperature")
+        if "max_tokens" in text:  # newer models call it max_completion_tokens
+            request["max_completion_tokens"] = request.pop("max_tokens")
+        if "temperature" in text or "max_tokens" in text:
             return client.chat.completions.create(**request)
         raise
 

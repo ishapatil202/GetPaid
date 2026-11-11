@@ -10,6 +10,7 @@ For each open invoice it:
   6. saves it as a DRAFT. Nothing is sent until the user approves it.
 Every step is logged, so the user can see exactly what the agent did and why.
 """
+import logging
 import re
 from datetime import date, datetime, timedelta, timezone
 
@@ -19,6 +20,8 @@ from .extraction import find_span
 from .llm import structured_call
 from .models import AgentRun, Invoice, Reminder, User
 from .paypal_client import PayPalClient, PayPalError, invoice_summary
+
+logger = logging.getLogger("getpaid")
 
 FIRM_AFTER_DAYS = 14
 RECENT_REMINDER_DAYS = 3
@@ -92,7 +95,7 @@ def draft_reminder(invoice: Invoice, days_overdue: int, tone: str) -> dict:
     while True:
         attempts += 1
         data, model, latency_ms = structured_call(SYSTEM_PROMPT, prompt, "payment_reminder", REMINDER_SCHEMA,
-                                                  temperature=0.2)
+                                                  temperature=0.2, max_tokens=600)
         total_ms += latency_ms
         problems = check_draft(data, contract.raw_text, tone, days_overdue, contract.late_fee)
         if not problems or attempts >= 2:
@@ -126,6 +129,9 @@ def run_reminder_agent(db: Session, user: User, paypal: PayPalClient):
 
     def log(tool: str, summary: str, ok: bool = True):
         steps.append({"tool": tool, "summary": summary, "ok": ok})
+        logger.info("agent step %s: %s", tool, summary)
+
+    logger.info("agent run started")
 
     invoices = db.query(Invoice).filter(Invoice.user_id == user.id).all()
     open_invoices = [i for i in invoices if i.status not in CLOSED]
@@ -173,6 +179,7 @@ def run_reminder_agent(db: Session, user: User, paypal: PayPalClient):
         log("rules.choose_tone", f"{label}: {days} days late, so write a {tone} reminder{fee_note}.")
 
         # Tool 2: AI drafts the reminder
+        logger.info("agent drafting reminder for %s", label)
         try:
             draft = draft_reminder(inv, days, tone)
         except Exception as error:  # keep going with the other invoices

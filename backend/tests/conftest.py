@@ -60,7 +60,7 @@ def fake_extract(text: str) -> ExtractionResult:
                             prompt_version="test", latency_ms=1, input_tokens=0, output_tokens=0)
 
 
-def fake_reminder_call(system, user, name, schema, temperature=0.0):
+def fake_reminder_call(system, user, name, schema, temperature=0.0, max_tokens=None):
     """Stands in for the AI writing a reminder: follows the rules, so drafts pass our checks."""
     days = re.search(r"Days late: (\d+)", user).group(1)
     quote = re.search(r'Contract sentence for this payment: "(.*)"', user).group(1)
