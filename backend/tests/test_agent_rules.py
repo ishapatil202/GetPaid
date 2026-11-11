@@ -28,6 +28,12 @@ def test_firm_draft_must_state_days_late_and_fee_and_not_say_gently():
     assert "18 days late" in problems and "late fee" in problems and "gently" in problems
 
 
+def test_firm_draft_must_not_call_itself_friendly():
+    draft = {"body": f'This is a friendly reminder: 18 days late. "{QUOTE}" The late fee applies.',
+             "contract_quote": QUOTE}
+    assert any("friendly" in p for p in check_draft(draft, CONTRACT, "firm", 18, "1.5%"))
+
+
 def test_invented_quote_is_rejected():
     draft = {"body": 'As agreed, "$5,000 due yesterday".', "contract_quote": "$5,000 due yesterday"}
     assert any("not copied exactly" in p for p in check_draft(draft, CONTRACT, "friendly", 3, None))

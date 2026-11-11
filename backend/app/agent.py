@@ -69,8 +69,8 @@ def check_draft(draft: dict, contract_text: str, tone: str, days_overdue: int, l
             problems.append(f"say that the payment is {days_overdue} days late")
         if late_fee and "fee" not in body.lower():
             problems.append("say that the contract's late fee now applies")
-        if "gently" in body.lower():
-            problems.append("a firm reminder must not say 'gently'")
+        if "gently" in body.lower() or "friendly" in body.lower():
+            problems.append("a firm reminder must not say 'gently' or 'friendly'")
     return problems
 
 
@@ -102,10 +102,12 @@ def draft_reminder(invoice: Invoice, days_overdue: int, tone: str) -> dict:
         prompt += ("\n\nYour previous draft had these problems: " + "; ".join(problems)
                    + ". Write it again and fix them.")
 
-    # Guarantee the sign-off, whatever the model did.
+    # Exactly one sign-off: drop whatever closing the model wrote, then add ours.
     name = contract.freelancer_name
-    if name and name not in data["body"]:
-        data["body"] = data["body"].rstrip() + f"\n\nBest regards,\n{name}"
+    if name:
+        body = re.split(r"\n\s*(?:best regards|kind regards|regards|sincerely|thank you|thanks|best),?\s*\n",
+                        data["body"].rstrip(), maxsplit=1, flags=re.IGNORECASE)[0]
+        data["body"] = body.rstrip() + f"\n\nBest regards,\n{name}"
 
     quote = (data.get("contract_quote") or "").strip()
     data["quote_verified"] = bool(quote) and find_span(contract.raw_text, quote) is not None
