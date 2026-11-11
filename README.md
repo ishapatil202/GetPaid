@@ -137,7 +137,7 @@ PDFs without a text layer aren't supported.
    **Send 3 invoices with PayPal**.
 3. Open an invoice with **Open in PayPal** in a private window and pay it as the sandbox buyer:
    - Email: `sb-01a5a53774906@personal.example.com`
-   - Password: _add the sandbox Personal account password_
+   - Password: rE7<H%o>
 4. **Invoices → Check for payments.** The invoice turns **Paid**.
 5. **Contracts → Add a contract → Sample: late client**, send its invoices, then
    **Reminders → Check for late payments**, review the drafts and approve one.
