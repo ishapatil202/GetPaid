@@ -1,6 +1,26 @@
+import { useEffect, useState } from "react";
+import { api } from "../api";
+
 type Props = { onTryDemo: () => void; loading: boolean; error: string | null };
 
 export default function Welcome({ onTryDemo, loading, error }: Props) {
+  const [slow, setSlow] = useState(false);
+
+  // Start waking the server as soon as the page opens, so "Try the demo" is fast.
+  useEffect(() => {
+    api.wake();
+  }, []);
+
+  // If the demo takes a while, explain why instead of looking broken.
+  useEffect(() => {
+    if (!loading) {
+      setSlow(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setSlow(true), 4000);
+    return () => window.clearTimeout(timer);
+  }, [loading]);
+
   return (
     <div className="welcome">
       <header className="welcome-top">
@@ -21,7 +41,11 @@ export default function Welcome({ onTryDemo, loading, error }: Props) {
             <button className="button button-primary button-large" onClick={onTryDemo} disabled={loading}>
               {loading ? "Opening the demo…" : "Try the demo"}
             </button>
-            <p className="fine-print">No sign-up. Runs on PayPal's sandbox, so no real money moves.</p>
+            <p className="fine-print" aria-live="polite">
+              {slow
+                ? "Waking up the server. On the free plan this can take up to a minute the first time."
+                : "No sign-up. Runs on PayPal's sandbox, so no real money moves."}
+            </p>
           </div>
           {error && <p className="error-text" role="alert">{error}</p>}
         </div>

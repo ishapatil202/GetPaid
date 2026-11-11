@@ -200,6 +200,8 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 }
 
 export const api = {
+  // Wakes the free server early (it sleeps when nobody uses it). Errors are ignored.
+  wake: () => fetch(API_URL + "/health").catch(() => undefined),
   demoLogin: () => request<{ token: string; name: string; email: string }>("POST", "/auth/demo"),
   contracts: () => request<ContractSummary[]>("GET", "/contracts"),
   contract: (id: number) => request<Contract>("GET", `/contracts/${id}`),

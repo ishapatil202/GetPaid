@@ -60,7 +60,7 @@ class PayPalClient:
     # ----- invoicing -----
 
     def create_invoice(self, *, recipient_email, recipient_name, currency, item_name,
-                       item_description, amount, due_date, note) -> str:
+                       item_description, amount, due_date, note, sender_name=None) -> str:
         if due_date and date.fromisoformat(due_date) >= date.today():
             payment_term = {"term_type": "DUE_ON_DATE_SPECIFIED", "due_date": due_date}
         else:
@@ -78,8 +78,18 @@ class PayPalClient:
                 "unit_amount": {"currency_code": currency, "value": f"{amount:.2f}"},
             }],
         }
-        created = self._request("POST", "/v2/invoicing/invoices", json=body,
-                                headers={"Prefer": "return=representation"})
+        if sender_name:
+            # Show who the invoice is from (the freelancer named in the contract).
+            body["invoicer"] = {"business_name": sender_name[:300]}
+        try:
+            created = self._request("POST", "/v2/invoicing/invoices", json=body,
+                                    headers={"Prefer": "return=representation"})
+        except PayPalError as error:
+            if "invoicer" not in body or error.status != 400:
+                raise
+            body.pop("invoicer")  # PayPal refused the sender name: send without it rather than fail
+            created = self._request("POST", "/v2/invoicing/invoices", json=body,
+                                    headers={"Prefer": "return=representation"})
         return created.get("id") or created["href"].rstrip("/").split("/")[-1]
 
     def send_invoice(self, invoice_id: str):

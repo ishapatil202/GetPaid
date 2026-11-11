@@ -45,6 +45,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.add_middleware(CORSMiddleware, allow_origins=config.FRONTEND_ORIGINS,
+                   allow_origin_regex=config.FRONTEND_ORIGIN_REGEX,
                    allow_methods=["*"], allow_headers=["*"])
 
 
@@ -107,6 +108,17 @@ def contract_out(contract: Contract) -> ContractOut:
         ai_model=extraction.get("model"),
         ai_latency_ms=extraction.get("latency_ms"),
     )
+
+
+def invoice_note(contract: Contract, milestone: Milestone) -> str:
+    """The note on the PayPal invoice. If the contract date has passed, say so (PayPal can't take past dates)."""
+    parts = [f"{contract.title}."]
+    if milestone.due_date and milestone.due_date < date.today().isoformat():
+        due = date.fromisoformat(milestone.due_date)
+        parts.append(f"Originally due {due.strftime('%b')} {due.day}, {due.year} under the contract.")
+    if contract.payment_terms:
+        parts.append(f"Payment terms: {contract.payment_terms}.")
+    return " ".join(parts)
 
 
 def own_contract(db: Session, user: User, contract_id: int) -> Contract:
@@ -281,7 +293,8 @@ def send_invoices(contract_id: int, user: User = Depends(get_current_user), db: 
                 item_description=f'Per contract: "{m.source_quote}"',
                 amount=m.amount,
                 due_date=m.due_date,
-                note=f"{contract.title}. Payment terms: {contract.payment_terms or 'see contract'}.",
+                note=invoice_note(contract, m),
+                sender_name=contract.freelancer_name,
             )
             paypal.send_invoice(paypal_id)
             summary = invoice_summary(paypal.get_invoice(paypal_id))

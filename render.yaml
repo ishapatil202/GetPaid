@@ -1,0 +1,44 @@
+# Render Blueprint: builds the GetPaid server and website from this repo.
+# Secrets (marked sync: false) are typed into Render's dashboard, never stored here.
+services:
+  - type: web
+    name: getpaid-api-isha
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: DATABASE_URL          # Neon PostgreSQL connection string
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_BUYER_EMAIL
+        sync: false
+      - key: PAYPAL_ENV
+        value: sandbox
+      - key: SECRET_KEY
+        generateValue: true
+      - key: FRONTEND_ORIGINS
+        value: https://getpaid-isha.onrender.com,http://localhost:5173
+      - key: FRONTEND_ORIGIN_REGEX   # also allows the site if Render adds a suffix to its name
+        value: https://getpaid-isha(-[a-z0-9]+)?\.onrender\.com
+
+  - type: web
+    name: getpaid-isha
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://getpaid-api-isha.onrender.com
