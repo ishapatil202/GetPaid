@@ -113,7 +113,8 @@ def client(monkeypatch):
     paypal = FakePayPal()
     monkeypatch.setattr(main, "extract_contract", fake_extract)
     monkeypatch.setattr(main, "get_paypal", lambda: paypal)
-    monkeypatch.setattr(agent, "structured_call", fake_reminder_call)
+    monkeypatch.setattr(agent, "reminder_call",
+                        lambda system, user, **kw: fake_reminder_call(system, user, None, None))
 
     with TestClient(main.app) as test_client:
         token = test_client.post("/auth/demo").json()["token"]

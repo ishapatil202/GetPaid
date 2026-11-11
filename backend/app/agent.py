@@ -17,7 +17,7 @@ from datetime import date, datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 
 from .extraction import find_span
-from .llm import structured_call
+from .llm import reminder_call
 from .models import AgentRun, Invoice, Reminder, User
 from .paypal_client import PayPalClient, PayPalError, invoice_summary
 
@@ -94,8 +94,7 @@ def draft_reminder(invoice: Invoice, days_overdue: int, tone: str) -> dict:
     attempts, total_ms, problems = 0, 0, []
     while True:
         attempts += 1
-        data, model, latency_ms = structured_call(SYSTEM_PROMPT, prompt, "payment_reminder", REMINDER_SCHEMA,
-                                                  temperature=0.2, max_tokens=600)
+        data, model, latency_ms = reminder_call(SYSTEM_PROMPT, prompt, temperature=0.2)
         total_ms += latency_ms
         problems = check_draft(data, contract.raw_text, tone, days_overdue, contract.late_fee)
         if not problems or attempts >= 2:
