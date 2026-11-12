@@ -8,7 +8,7 @@ and drafts reminders to late clients that quote the contract. A human approves e
 reminder before anything is sent.
 
 - **Live demo:** https://getpaid-isha.onrender.com (click **Try the demo**, no sign-up)
-- **Demo video:** _add YouTube link_
+- **Demo video:** https://youtu.be/r4Qv0KGDv-Y
 - Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com) · Runs on the PayPal **sandbox**, so no real money moves
 
 > The free server sleeps when idle. The first click can take up to a minute while it wakes up.

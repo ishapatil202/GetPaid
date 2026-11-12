@@ -16,3 +16,6 @@ dist/
 
 # Local database
 backend/getpaid.db
+
+# Video work files
+video/
