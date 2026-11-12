@@ -15,6 +15,7 @@ os.environ.update({
     "PAYPAL_CLIENT_ID": "test-client-id",
     "PAYPAL_CLIENT_SECRET": "test-client-secret",
     "PAYPAL_BUYER_EMAIL": "buyer@example.com",
+    "PAYPAL_WEBHOOK_ID": "WH-TEST",
     "PAYPAL_ENV": "sandbox",
     "SECRET_KEY": "test-secret-key",
 })
@@ -94,6 +95,9 @@ class FakePayPal:
         if inv["status"] == "PAID":
             result["payments"] = {"transactions": [{"payment_date": "2026-11-08T10:00:00Z"}]}
         return result
+
+    def verify_webhook(self, headers, raw_body, webhook_id):
+        return webhook_id == "WH-TEST" and headers.get("paypal-transmission-sig") == "good-signature"
 
     def remind(self, invoice_id, subject, note):
         self.reminders.append((invoice_id, subject, note))

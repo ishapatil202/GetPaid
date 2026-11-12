@@ -1,4 +1,5 @@
 """Small PayPal Invoicing v2 client (the Step 1 test script, made reusable)."""
+import json
 import time
 from datetime import date
 
@@ -98,6 +99,30 @@ class PayPalClient:
 
     def get_invoice(self, invoice_id: str) -> dict:
         return self._request("GET", f"/v2/invoicing/invoices/{invoice_id}")
+
+    def verify_webhook(self, headers: dict, raw_body: bytes, webhook_id: str) -> bool:
+        """Ask PayPal whether this webhook really came from PayPal.
+        The event is passed through byte-for-byte: re-encoding it can break the signature check."""
+        fields = {
+            "auth_algo": headers.get("paypal-auth-algo"),
+            "cert_url": headers.get("paypal-cert-url"),
+            "transmission_id": headers.get("paypal-transmission-id"),
+            "transmission_sig": headers.get("paypal-transmission-sig"),
+            "transmission_time": headers.get("paypal-transmission-time"),
+            "webhook_id": webhook_id,
+        }
+        if not all(fields.values()):
+            return False
+        body = json.dumps(fields)[:-1] + ', "webhook_event": ' + raw_body.decode("utf-8") + "}"
+        response = httpx.post(
+            f"{self.base_url}/v1/notifications/verify-webhook-signature",
+            content=body.encode("utf-8"),
+            headers={"Authorization": f"Bearer {self._access_token()}", "Content-Type": "application/json"},
+            timeout=30,
+        )
+        if response.status_code >= 400:
+            return False
+        return response.json().get("verification_status") == "SUCCESS"
 
     def remind(self, invoice_id: str, subject: str, note: str):
         self._request("POST", f"/v2/invoicing/invoices/{invoice_id}/remind",

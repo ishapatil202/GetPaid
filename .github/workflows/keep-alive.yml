@@ -1,0 +1,17 @@
+name: keep-alive
+
+# The free Render server sleeps after 15 idle minutes. Ping it so judges don't wait for a cold start.
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Ping API and website
+        run: |
+          curl -fsS --max-time 90 https://getpaid-api-isha.onrender.com/health
+          curl -fsS --max-time 60 -o /dev/null https://getpaid-isha.onrender.com

@@ -19,6 +19,8 @@ PAYPAL_ENV = os.getenv("PAYPAL_ENV", "sandbox")
 PAYPAL_BASE_URL = "https://api-m.paypal.com" if PAYPAL_ENV == "live" else "https://api-m.sandbox.paypal.com"
 # In sandbox, invoices go to this test buyer so the demo can actually pay them.
 PAYPAL_BUYER_EMAIL = os.getenv("PAYPAL_BUYER_EMAIL", "")
+# ID of the webhook registered in the PayPal developer dashboard (used to verify webhook signatures)
+PAYPAL_WEBHOOK_ID = os.getenv("PAYPAL_WEBHOOK_ID", "")
 
 # App
 SECRET_KEY = os.getenv("SECRET_KEY") or "dev-only-secret"

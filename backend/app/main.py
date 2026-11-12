@@ -5,15 +5,17 @@ Run from the project folder:
     uvicorn app.main:app --reload --app-dir backend
 Then open http://localhost:8000/docs
 """
+import json
 import logging
 from contextlib import asynccontextmanager
 from datetime import date, datetime, timezone
 
 import openai
-from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from starlette.concurrency import run_in_threadpool
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from . import config
@@ -25,7 +27,7 @@ from .auth import create_token, get_current_user, get_or_create_demo_user
 from .checks import BLOCKING_CODES, payment_checks
 from .database import Base, engine, get_db
 from .extraction import extract_contract
-from .models import AgentRun, Contract, ExtractionLog, Invoice, Milestone, Reminder, User
+from .models import AgentRun, Contract, ExtractionLog, Invoice, Milestone, Reminder, User, WebhookEvent
 from .paypal_client import PayPalError, get_paypal, invoice_summary
 from .pdf_text import PdfTextError, pdf_to_text
 from .schemas import Highlight, Issue
@@ -466,3 +468,72 @@ def skip_reminder(reminder_id: int, user: User = Depends(get_current_user), db: 
     reminder.status = "skipped"
     db.commit()
     return reminder_out(reminder)
+
+
+# ---------- PayPal webhooks ----------
+
+WEBHOOK_HEADERS = ("paypal-auth-algo", "paypal-cert-url", "paypal-transmission-id",
+                   "paypal-transmission-sig", "paypal-transmission-time")
+
+
+def _event_invoice_id(event: dict):
+    resource = event.get("resource") or {}
+    return (resource.get("invoice") or {}).get("id") or resource.get("id")
+
+
+@app.post("/webhooks/paypal", tags=["webhooks"])
+async def paypal_webhook(request: Request, db: Session = Depends(get_db)):
+    """PayPal calls this when an invoice changes (e.g. paid). Verified, idempotent, then synced from PayPal."""
+    if not config.PAYPAL_WEBHOOK_ID:
+        raise HTTPException(status_code=503, detail="Webhooks are not configured.")
+    raw = await request.body()
+    try:
+        event = json.loads(raw)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid JSON.")
+    event_id, event_type = event.get("id"), event.get("event_type", "")
+    if not event_id:
+        raise HTTPException(status_code=400, detail="Missing event id.")
+
+    # 1. Is it really from PayPal?
+    headers = {name: request.headers.get(name) for name in WEBHOOK_HEADERS}
+    paypal = get_paypal()
+    try:
+        verified = await run_in_threadpool(paypal.verify_webhook, headers, raw, config.PAYPAL_WEBHOOK_ID)
+    except PayPalError:
+        verified = False
+    if not verified:
+        logging.getLogger("getpaid").warning("webhook %s rejected: signature not verified", event_id)
+        raise HTTPException(status_code=400, detail="Webhook signature could not be verified.")
+
+    # 2. Seen it before? PayPal retries, so process each event once.
+    if db.query(WebhookEvent).filter(WebhookEvent.paypal_event_id == event_id).first():
+        return {"ok": True, "duplicate": True}
+
+    # 3. Sync the invoice from PayPal (we trust PayPal's current state, not the event payload).
+    invoice_id = _event_invoice_id(event)
+    result = "ignored"
+    inv = db.query(Invoice).filter(Invoice.paypal_invoice_id == invoice_id).first() if invoice_id else None
+    if inv and event_type.startswith("INVOICING.INVOICE."):
+        try:
+            summary = await run_in_threadpool(lambda: invoice_summary(paypal.get_invoice(invoice_id)))
+            old = inv.status
+            inv.status = summary["status"]
+            inv.pay_link = summary["pay_link"] or inv.pay_link
+            if inv.status in ("PAID", "MARKED_AS_PAID") and not inv.paid_at:
+                inv.paid_at = _parse_dt(summary["paid_at"]) or datetime.now(timezone.utc)
+            result = f"{old} -> {inv.status}"
+        except PayPalError as error:
+            result = f"sync failed: {error.message}"[:255]
+    elif invoice_id:
+        result = "unknown invoice"
+
+    db.add(WebhookEvent(paypal_event_id=event_id, event_type=event_type[:100],
+                        resource_id=(invoice_id or "")[:100], result=result))
+    try:
+        db.commit()
+    except IntegrityError:  # the same event arrived twice at the same moment
+        db.rollback()
+        return {"ok": True, "duplicate": True}
+    logging.getLogger("getpaid").info("webhook %s %s: %s", event_type, invoice_id, result)
+    return {"ok": True, "result": result}

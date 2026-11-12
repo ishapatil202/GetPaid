@@ -125,3 +125,14 @@ class Reminder(Base):
     sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
     invoice: Mapped[Invoice] = relationship()
+
+
+class WebhookEvent(Base):
+    """Every PayPal webhook we accepted. The unique event id makes processing idempotent."""
+    __tablename__ = "webhook_events"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    paypal_event_id: Mapped[str] = mapped_column(String(100), unique=True, index=True)
+    event_type: Mapped[str] = mapped_column(String(100))
+    resource_id: Mapped[Optional[str]] = mapped_column(String(100))
+    result: Mapped[str] = mapped_column(String(255), default="")
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

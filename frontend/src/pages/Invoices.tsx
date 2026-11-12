@@ -135,6 +135,26 @@ export default function Invoices() {
     load().catch((e: Error) => setError(e.message));
   }, [load]);
 
+  // Live updates: PayPal webhooks change statuses on the server, so poll quietly while the page is open.
+  const knownStatus = useRef<Record<string, string>>({});
+  useEffect(() => {
+    for (const inv of invoices ?? []) {
+      const before = knownStatus.current[inv.paypal_invoice_id];
+      const paidNow = inv.status === "PAID" || inv.status === "MARKED_AS_PAID";
+      if (before && before !== inv.status && paidNow) {
+        setJustPaid((set) => new Set(set).add(inv.paypal_invoice_id));
+        setMessage(`${inv.milestone_title} was just paid. PayPal notified GetPaid automatically.`);
+      }
+      knownStatus.current[inv.paypal_invoice_id] = inv.status;
+    }
+  }, [invoices]);
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") load().catch(() => undefined);
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, [load]);
+
   // Totals row at the bottom: sums only the rows that are currently visible.
   const updateTotals = useCallback((event: { api: GridApi<Invoice> }) => {
     let sum = 0;

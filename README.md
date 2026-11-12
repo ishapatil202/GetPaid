@@ -30,14 +30,14 @@ are usually found only after money is missing.
 | **2. Show its evidence** | Every extracted value carries the exact sentence it came from. Click a payment and that sentence lights up in the contract. |
 | **3. Check the math** | Code (not the AI) checks the result: milestones vs. contract total, missing dates, missing email, past dates. Blocking problems disable sending until fixed. |
 | **4. Send PayPal invoices** | One click creates and sends one PayPal invoice per milestone. Each invoice quotes the contract line it bills for. |
-| **5. Track payment** | Status comes from PayPal. An AG Grid table shows paid / waiting / overdue, with totals, filters and CSV export. |
+| **5. Track payment** | PayPal webhooks mark invoices paid the moment the client pays. An AG Grid table shows paid / waiting / overdue, with totals, filters and CSV export. |
 | **6. Ask your invoices** | Type "unpaid invoices over $1,000, biggest first" and the AI turns it into AG Grid filters you can see and edit. |
 | **7. Chase late clients** | A reminder agent checks PayPal, picks a friendly or firm tone, drafts a reminder that quotes the contract, checks its own draft, and waits for your approval. Approved reminders are sent through PayPal. |
 
 ## How it uses PayPal and AI
 
 **PayPal (Invoicing v2, sandbox):** OAuth2 client credentials; create draft invoice; send invoice;
-get invoice (status and payment details); send reminder. Invoices carry the freelancer's business name,
+get invoice (status and payment details); send reminder; **webhooks** (`INVOICING.INVOICE.PAID` and related events), with signature verification through PayPal's verify-webhook-signature API and idempotent processing (each event id is stored once). Invoices carry the freelancer's business name,
 the client, the amount, the due date and a note with the original contract due date.
 
 **AI (OpenAI `gpt-4o-mini`):**
@@ -64,7 +64,7 @@ flowchart LR
 ```
 backend/
   app/
-    main.py           API routes
+    main.py           API routes, PayPal webhook endpoint
     extraction.py     contract -> structured data, then verification
     checks.py         money rules (totals, dates, email)
     agent.py          reminder agent: tools, tone rule, draft checks, step log
@@ -74,7 +74,7 @@ backend/
     pdf_text.py       PDF -> clean text
     models.py         SQLAlchemy tables
   evals/              15 hand-labeled contracts + grader
-  tests/              29 pytest tests (AI and PayPal mocked)
+  tests/              32 pytest tests (AI and PayPal mocked)
 frontend/src/pages/   Welcome, Contracts, Review, Invoices (AG Grid), Reminders
 render.yaml           one-file deploy (Render Blueprint)
 ```
@@ -125,9 +125,8 @@ pipeline's checks more than real-world accuracy. Results JSON for each run is in
   and verified, and cut-off answers are retried once.
 - **Sandbox safety.** In sandbox mode invoices go to the sandbox buyer account so the demo payment works.
 
-**Known limitations:** demo login only (one shared demo account, no real sign-up); payment status is
-refreshed on demand and by the agent rather than by PayPal webhooks; one currency per contract; scanned
-PDFs without a text layer aren't supported.
+**Known limitations:** demo login only (one shared demo account, no real sign-up); one currency per
+contract; scanned PDFs without a text layer aren't supported.
 
 ## Try it (for judges)
 
@@ -138,7 +137,7 @@ PDFs without a text layer aren't supported.
 3. Open an invoice with **Open in PayPal** in a private window and pay it as the sandbox buyer:
    - Email: `sb-01a5a53774906@personal.example.com`
    - Password: rE7<H%o>
-4. **Invoices → Check for payments.** The invoice turns **Paid**.
+4. Keep the **Invoices** page open: the invoice turns **Paid** by itself a few seconds after paying (PayPal webhook).
 5. **Contracts → Add a contract → Sample: late client**, send its invoices, then
    **Reminders → Check for late payments**, review the drafts and approve one.
 
@@ -165,6 +164,8 @@ along with a frontend build.
 
 **Deploy:** `render.yaml` is a Render Blueprint. Create a Blueprint from the repo and enter the secret
 values (`DATABASE_URL`, `OPENAI_API_KEY`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_BUYER_EMAIL`).
+For live payment updates, add a webhook in the PayPal app pointing to `https://<your-api>/webhooks/paypal`
+(Invoicing events) and set its id as `PAYPAL_WEBHOOK_ID`.
 
 ## Built with
 
